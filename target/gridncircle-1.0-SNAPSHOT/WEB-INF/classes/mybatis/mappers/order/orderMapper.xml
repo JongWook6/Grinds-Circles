@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.grepp.gridncircle.app.model.order.OrderRepository">
+
+  <resultMap id="orderGroupMap" type="OrderGroupDto">
+    <id property="orderUserEmail" column="orderUserEmail"/>
+    <result property="orderUserName" column="orderUserName"/>
+    <result property="orderUserAddress" column="orderUserAddress"/>
+
+    <collection property="items" ofType="OrderItemDto">
+      <result property="orderId" column="orderId"/>
+      <result property="menuName" column="menuName"/>
+      <result property="quantity" column="quantity"/>
+      <result property="price" column="price"/>
+      <result property="status" column="status"/>
+      <result property="orderDateTime" column="orderDateTime"/>
+    </collection>
+  </resultMap>
+
+  <resultMap id="orderStatsMap" type="com.grepp.gridncircle.app.model.order.dto.OrderStatsDto">
+    <result property="name" column="name"/>
+    <result property="totalQuantity" column="total_quantity"/>
+  </resultMap>
+
+  <resultMap id="orderSalesMap" type="com.grepp.gridncircle.app.model.order.dto.OrderSalesDto">
+    <result property="orderDate" column="order_date"/>
+    <result property="totalAmount" column="total_amount"/>
+  </resultMap>
+
+  <select id="selectGroupedOrders" resultMap="orderGroupMap">
+    SELECT
+    o.id AS orderId,
+    o.user_email AS orderUserEmail,
+    o.user_name AS orderUserName,
+    o.user_address AS orderUserAddress,
+    o.created_at AS orderDateTime,
+    m.name AS menuName,
+    om.quantity AS quantity,
+    m.price AS price,
+    o.status AS status
+    FROM orders o
+    LEFT JOIN ordered_menu om ON o.id = om.order_id
+    LEFT JOIN menu m ON om.menu_id = m.id
+    WHERE o.created_at BETWEEN #{startDateTime} AND #{endDateTime}
+    ORDER BY o.user_email, o.created_at
+  </select>
+
+  <select id="findByIdAndDateTime" resultMap="orderGroupMap">
+    SELECT
+    o.id AS orderId,
+    o.user_email AS orderUserEmail,
+    o.user_name AS orderUserName,
+    o.user_address AS orderUserAddress,
+    o.created_at AS orderDateTime,
+    m.name AS menuName,
+    om.quantity AS quantity,
+    m.price AS price,
+    o.status AS status
+    FROM orders o
+    LEFT JOIN ordered_menu om ON o.id = om.order_id
+    LEFT JOIN menu m ON om.menu_id = m.id
+    WHERE o.id = #{orderId} AND o.created_at BETWEEN #{startDateTime} AND #{endDateTime}
+    ORDER BY o.user_email, o.created_at
+  </select>
+
+  <select id="getTop5Menu" resultMap="orderStatsMap">
+    SELECT m.name AS name, SUM(om.quantity) AS total_quantity
+    FROM ordered_menu om
+    JOIN menu m ON om.menu_id = m.id
+    JOIN orders o ON om.order_id = o.id
+    WHERE o.created_at BETWEEN #{startDateTime} AND #{endDateTime}
+    GROUP BY m.id, m.name
+    ORDER BY total_quantity DESC
+    LIMIT 5
+  </select>
+
+  <select id="getDailySales" resultType="orderSalesDto">
+    SELECT DATE(o.created_at) AS order_date,
+    SUM(om.quantity * m.price) AS total_amount
+    FROM ordered_menu om
+    JOIN menu m ON om.menu_id = m.id
+    JOIN orders o ON om.order_id = o.id
+    WHERE o.created_at BETWEEN #{startDateTime} AND #{endDateTime}
+    GROUP BY order_date
+    ORDER BY order_date ASC
+  </select>
+
+
+</mapper>
